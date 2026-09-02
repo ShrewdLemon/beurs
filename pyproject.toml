@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bourse"
+version = "0.1.0"
+description = "Market data that does not lie to you: audit any price series against the exchange that produced it. NSE, NYSE, NASDAQ, SSE, HKEX."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Punarbasu Pradhan" }]
+keywords = ["market-data", "trading-calendar", "data-quality", "yfinance",
+            "quantitative-finance", "equities", "nse", "nyse", "nasdaq",
+            "shanghai", "bhavcopy", "india", "backtesting"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Financial and Insurance Industry",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Office/Business :: Financial :: Investment",
+]
+dependencies = ["pandas>=2.0"]
+
+[project.optional-dependencies]
+fetch = ["curl_cffi>=0.7"]
+global = ["exchange_calendars>=4.5"]
+all = ["curl_cffi>=0.7", "exchange_calendars>=4.5"]
+dev = ["pytest>=8.0", "curl_cffi>=0.7", "exchange_calendars>=4.5", "pyarrow>=15.0"]
+
+[project.urls]
+Homepage = "https://github.com/ShrewdLemon/bourse"
+Traps = "https://github.com/ShrewdLemon/bourse/blob/main/TRAPS.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["bourse"]
+
+[tool.hatch.build]
+include = ["bhavkit/data/*.json"]
