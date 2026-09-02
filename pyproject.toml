@@ -28,9 +28,13 @@ global = ["exchange_calendars>=4.5"]
 all = ["curl_cffi>=0.7", "exchange_calendars>=4.5"]
 dev = ["pytest>=8.0", "curl_cffi>=0.7", "exchange_calendars>=4.5", "pyarrow>=15.0"]
 
+[project.scripts]
+bourse = "bourse.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/ShrewdLemon/bourse"
 Traps = "https://github.com/ShrewdLemon/bourse/blob/main/TRAPS.md"
+Issues = "https://github.com/ShrewdLemon/bourse/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["bourse"]

@@ -1,14 +1,21 @@
 # bourse
 
+[![tests](https://github.com/ShrewdLemon/bourse/actions/workflows/ci.yml/badge.svg)](https://github.com/ShrewdLemon/bourse/actions/workflows/ci.yml)
+[![python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://github.com/ShrewdLemon/bourse)
+[![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![exchanges](https://img.shields.io/badge/exchanges-NSE%20%7C%20NYSE%20%7C%20NASDAQ%20%7C%20SSE%20%7C%20HKEX-orange)](#calendars-carry-their-provenance)
+
 **Market data that does not lie to you.**
 
 Audit any price series against the exchange that produced it. Four failure modes
 that never raise an exception, on any venue.
 
 ```bash
-pip install bourse          # calendar + audit
-pip install bourse[all]     # + global calendars and fetching
+pip install git+https://github.com/ShrewdLemon/bourse       # calendar + audit
+pip install "bourse[all] @ git+https://github.com/ShrewdLemon/bourse"
 ```
+
+> On PyPI shortly. Until then, install from git — the command above works today.
 
 ---
 
@@ -59,6 +66,48 @@ And note `RELIANCE` has **no** `fabricated_jumps` despite a 2:1 split in the
 window, because that split *is* correctly adjusted. The check separates a real
 corporate action from an invented price change; it does not just flag large
 moves.
+
+---
+
+## Or from the command line
+
+No Python needed to answer "is this data lying to me":
+
+```console
+$ bourse audit TRENT.NS --exchange NSE
+TRENT.NS [NSE]: missing_sessions=5 phantom_rows=4 stale_sessions=1
+
+$ bourse audit AAPL --exchange NASDAQ
+AAPL [NASDAQ]: clean (502 rows / 502 sessions)
+
+$ bourse audit RELIANCE.NS INFY.NS TCS.NS --exchange NSE     # table, worst first
+$ bourse sessions 2024-01-01 2024-12-31 --exchange NYSE -n
+252
+$ bourse status
+```
+
+`bourse audit` **exits 2 when it finds something** and 0 when clean, so it drops
+straight into CI as a data-quality gate:
+
+```yaml
+- run: bourse audit RELIANCE.NS TCS.NS --exchange NSE
+```
+
+---
+
+## Works with what you already use
+
+bourse does not fetch your prices — it **checks them**. It is complementary to
+the libraries you already have:
+
+| you use | bourse adds |
+|---|---|
+| [`yfinance`](https://github.com/ranaroussi/yfinance) | finds the fabricated jumps, stale sessions and phantom rows in its output |
+| [`jugaad-data`](https://github.com/jugaad-py/jugaad-data), [`nsepython`](https://github.com/aeron7/nsepython) | a verified NSE calendar to check their coverage against |
+| [`exchange_calendars`](https://github.com/gerrymanoim/exchange_calendars) | used directly for NYSE/SSE/HKEX; bourse fills the NSE gap it does not cover |
+| any backtester | a pre-flight check so you find out before the backtest, not after |
+
+Pass any OHLCV frame with a `DatetimeIndex`. There is no ingestion step.
 
 ---
 
@@ -177,4 +226,15 @@ your corpus, and ISIN reissues that make 12 live companies look delisted.
   ex-adjusted either: RELIANCE's 1:2 reads −49.76%. That is a feature for
   auditing and a trap if you difference it naively.
 
-MIT. Issues and PRs welcome — especially measured traps on other venues.
+## Contributing
+
+The most valuable contribution is **a measured trap**: what the source says vs
+what the exchange says, with dates and numbers, plus a snippet that reproduces
+it. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Adding a venue is cheap — one entry in `EXCHANGES` gets you a `sourced`
+calendar. Shipping a `verified` one requires showing the diff against the
+sourced calendar it replaces.
+
+MIT. See [DISCLAIMER.md](DISCLAIMER.md) — this is educational software, not
+investment advice, and it is not affiliated with any exchange.
