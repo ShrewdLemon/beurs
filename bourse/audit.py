@@ -22,6 +22,19 @@ is a parameter and why `bourse.calendars` states its provenance.
 
     missing_sessions   Sessions the venue traded that the series lacks.
 
+    unexpected_sessions  Rows on dates the venue did NOT trade, carrying real
+                       volume -- so not phantoms. Measured on Saudi Aramco:
+                       3 such rows in 2024, all inside Eid windows, where the
+                       moon-sighting date is hard to publish in advance.
+
+    dropped_weekday    The missing sessions are not scattered -- they are one
+                       weekday, gone. Measured on TEVA.TA: 50 of 51 missing 2024
+                       sessions were SUNDAYS. Tel Aviv trades Sunday-Thursday,
+                       and the source silently serves a Monday-Friday week,
+                       deleting a fifth of the Israeli trading year. The same
+                       shape appears on Gulf venues. This is invisible to any
+                       check that counts holidays.
+
 WHY PHANTOMS MATTER MORE THAN THEY LOOK. They understate volatility, and
 volatility is the denominator of your test statistic. On one measured name sigma
 came out 0.0249 against a true 0.0462 -- 46% too low. That INFLATES every
@@ -59,6 +72,7 @@ class Report:
     n_rows: int
     n_sessions_expected: int
     findings: list[Finding] = field(default_factory=list)
+    inferred: bool = False        # venue was guessed from the ticker, not given
 
     @property
     def clean(self) -> bool:
@@ -67,12 +81,34 @@ class Report:
     def __getitem__(self, kind: str) -> Finding | None:
         return next((f for f in self.findings if f.kind == kind), None)
 
+    @property
+    def wrong_venue_suspected(self) -> bool:
+        """Could these findings just be the wrong calendar?
+
+        Deliberately weak, and it says so. Two markets' session sets can agree
+        to within a few percent over a short window -- India and the US differ
+        by about 9% over a quarter -- so there is NO reliable test that separates
+        "bad data" from "right data, wrong calendar" in the general case.
+
+        Rather than pretend otherwise, this is true whenever the venue was
+        GUESSED and anything was found. The remedy is one keyword, so a reminder
+        costs the caller nothing and a false accusation would cost their trust.
+        Never true for a venue the caller named: that is their call.
+        """
+        return self.inferred and not self.clean
+
+    def _venue_warning(self) -> str:
+        return (f"\n  (venue inferred as {self.exchange} from {self.symbol!r}; "
+                f"if that is wrong so is everything above -- pass exchange=, "
+                f"see bourse.status())")
+
     def summary(self) -> str:
         if self.clean:
             return (f"{self.symbol} [{self.exchange}]: clean "
                     f"({self.n_rows} rows / {self.n_sessions_expected} sessions)")
         parts = " ".join(f"{f.kind}={len(f)}" for f in self.findings)
-        return f"{self.symbol} [{self.exchange}]: {parts}"
+        out = f"{self.symbol} [{self.exchange}]: {parts}"
+        return out + self._venue_warning() if self.wrong_venue_suspected else out
 
     def explain(self) -> str:
         if self.clean:
@@ -84,6 +120,29 @@ class Report:
             out += [f"  {f.kind} [{len(f)}]", f"    {f.detail}",
                     f"    {shown}{more}", ""]
         return "\n".join(out)
+
+
+_DAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+         "Saturday", "Sunday")
+
+
+def _dominant_weekday(missing, min_n: int = 8,
+                      share: float = 0.8) -> tuple[int, float] | None:
+    """Is one weekday responsible for nearly all the misses?
+
+    A venue that trades Sunday-Thursday served through a Monday-Friday
+    assumption loses every Sunday and nothing else, so the misses concentrate
+    almost perfectly. Genuine data loss does not do that. The floor of 8 keeps
+    a handful of ordinary holidays from tripping it by coincidence.
+    """
+    if len(missing) < min_n:
+        return None
+    counts: dict[int, int] = {}
+    for d in missing:
+        counts[d.weekday()] = counts.get(d.weekday(), 0) + 1
+    day, n = max(counts.items(), key=lambda kv: kv[1])
+    frac = n / len(missing)
+    return (day, frac) if frac >= share else None
 
 
 def _close(df: pd.DataFrame) -> pd.Series:
@@ -117,12 +176,16 @@ def _flat_zero_volume(df: pd.DataFrame) -> set[date]:
     return {x.date() for x in idx[flat.to_numpy()]}
 
 
-def audit(df: pd.DataFrame, symbol: str, *, exchange: str = cals.DEFAULT,
+def audit(df: pd.DataFrame, symbol: str, *, exchange: str = cals.AUTO,
           exchange_close: pd.Series | None = None,
           jump_threshold: float = 0.15) -> Report:
     """Check one price frame against a venue's trading calendar.
 
     `df` is a yfinance-shaped frame (Open/High/Low/Close/Volume, DatetimeIndex).
+
+    `exchange` defaults to "auto", which reads the venue off the ticker suffix:
+    ".NS" is India, ".HK" is Hong Kong, a bare symbol is the US calendar. Pass
+    it explicitly when the symbol carries no suffix to go on.
 
     `exchange_close` is optional: RAW, UNADJUSTED exchange closes indexed by
     date. Supplying it enables the strongest check -- fabricated adjustment
@@ -134,14 +197,14 @@ def audit(df: pd.DataFrame, symbol: str, *, exchange: str = cals.DEFAULT,
     >>> bourse.audit(df, "AAPL", exchange="NASDAQ").summary()
     'AAPL [NASDAQ]: clean (250 rows / 250 sessions)'
     """
-    cals.resolve(exchange)
+    ex = cals.resolve(exchange, symbol)
     close = _close(df)
     have = {d.date() for d in close.index}
     if not have:
         raise ValueError(f"{symbol}: empty price frame")
-    first, last = cals.coverage(exchange)
+    first, last = cals.coverage(ex.code)
     lo, hi = max(min(have), first), min(max(have), last)
-    expected = set(cals.sessions(lo, hi, exchange=exchange))
+    expected = set(cals.sessions(lo, hi, exchange=ex.code))
 
     findings: list[Finding] = []
 
@@ -149,10 +212,31 @@ def audit(df: pd.DataFrame, symbol: str, *, exchange: str = cals.DEFAULT,
     if missing:
         findings.append(Finding(
             "missing_sessions", tuple(missing),
-            "Sessions the exchange traded that this series lacks. On NSE these "
-            "are typically weekend specials, which no price-API calendar carries."))
+            f"Sessions {ex.code} traded that this series lacks. On NSE these are "
+            f"typically weekend specials no price-API calendar carries; on "
+            f"Sunday-Thursday venues they are usually a dropped weekday, which "
+            f"is reported separately below when that is what it is."))
+        wd = _dominant_weekday(missing)
+        if wd is not None:
+            day, share = wd
+            findings.append(Finding(
+                "dropped_weekday", tuple(missing),
+                f"{share:.0%} of the missing sessions fall on {_DAYS[day]}. This "
+                f"is not scattered data loss -- the source is serving a "
+                f"Monday-Friday week to a venue that does not keep one, and every "
+                f"{_DAYS[day]} session is gone. Nothing raises, and a holiday-count "
+                f"check cannot see it."))
 
     flat = _flat_zero_volume(df)
+    unexpected = sorted(d for d in have
+                        if d not in expected and d not in flat and lo <= d <= hi)
+    if unexpected:
+        findings.append(Finding(
+            "unexpected_sessions", tuple(unexpected),
+            "Rows on dates this venue did not trade, carrying real volume -- so "
+            "not phantom rows. Either the calendar is wrong for this series, or "
+            "the series is not from this venue at all."))
+
     phantoms = sorted(d for d in flat if d not in expected and lo <= d <= hi)
     if phantoms:
         findings.append(Finding(
@@ -172,9 +256,10 @@ def audit(df: pd.DataFrame, symbol: str, *, exchange: str = cals.DEFAULT,
     if exchange_close is not None and len(exchange_close):
         findings += _adjustment_findings(close, exchange_close, jump_threshold)
 
-    return Report(symbol=symbol, exchange=cals.resolve(exchange).code,
+    return Report(symbol=symbol, exchange=ex.code,
                   n_rows=len(close), n_sessions_expected=len(expected),
-                  findings=findings)
+                  findings=findings,
+                  inferred=str(exchange).lower() == cals.AUTO)
 
 
 def _adjustment_findings(adjusted: pd.Series, raw: pd.Series,
@@ -213,7 +298,7 @@ def _adjustment_findings(adjusted: pd.Series, raw: pd.Series,
         "Re-adjust from raw exchange closes, or drop the name.")]
 
 
-def audit_many(frames: dict, *, exchange: str = cals.DEFAULT,
+def audit_many(frames: dict, *, exchange: str = cals.AUTO,
                exchange_close: dict | None = None, **kw) -> pd.DataFrame:
     """Audit a {symbol: frame} mapping. One row per symbol, sorted worst-first."""
     rows = []
@@ -227,13 +312,14 @@ def audit_many(frames: dict, *, exchange: str = cals.DEFAULT,
         row = {"symbol": sym, "rows": rep.n_rows,
                "sessions": rep.n_sessions_expected, "clean": rep.clean}
         for kind in ("fabricated_jumps", "stale_sessions", "phantom_rows",
-                     "missing_sessions"):
+                     "unexpected_sessions", "missing_sessions"):
             f = rep[kind]
             row[kind] = len(f) if f else 0
         rows.append(row)
     out = pd.DataFrame(rows)
     if "clean" in out.columns:
-        cols = ["fabricated_jumps", "stale_sessions", "phantom_rows", "missing_sessions"]
+        cols = ["fabricated_jumps", "stale_sessions", "phantom_rows",
+                "unexpected_sessions", "missing_sessions"]
         out["_severity"] = out[cols].fillna(0).sum(axis=1)
         out = out.sort_values("_severity", ascending=False).drop(columns="_severity")
     return out.reset_index(drop=True)

@@ -77,9 +77,52 @@ def _get(url: str):
         return requests.get(url, headers=HEADERS, timeout=60)
 
 
+# A day's equity bhavcopy is ~400KB compressed and a few MB expanded. These
+# ceilings are an order of magnitude above that.
+MAX_DOWNLOAD = 64 * 1024 * 1024        # bytes accepted off the wire
+MAX_UNPACKED = 256 * 1024 * 1024       # bytes accepted out of the archive
+
+
+class Untrusted(Unavailable):
+    """The response was not the file we asked for.
+
+    A separate exception because "the archive is down" and "the archive served
+    something that should not be unpacked" want different responses from a
+    caller, and collapsing them hides the second.
+    """
+
+
 def _read_zip(content: bytes) -> pd.DataFrame:
-    z = zipfile.ZipFile(io.BytesIO(content))
-    df = pd.read_csv(io.BytesIO(z.read(z.namelist()[0])))
+    """Unpack one CSV out of the archive, refusing anything implausible.
+
+    Nothing is ever written to disk, so archive path traversal does not apply.
+    What does apply is a decompression bomb: `read()` on a member expands into
+    memory, and a few hundred KB can declare gigabytes. So the declared sizes
+    are checked BEFORE anything is expanded.
+    """
+    if len(content) > MAX_DOWNLOAD:
+        raise Untrusted(f"archive is {len(content)}B, over the {MAX_DOWNLOAD}B cap")
+    try:
+        z = zipfile.ZipFile(io.BytesIO(content))
+    except zipfile.BadZipFile as e:
+        raise Untrusted(f"not a zip archive: {e}") from e
+
+    members = [i for i in z.infolist() if not i.is_dir()]
+    if not members:
+        raise Untrusted("archive contains no files")
+    total = sum(i.file_size for i in members)
+    if total > MAX_UNPACKED:
+        raise Untrusted(
+            f"archive declares {total}B unpacked, over the {MAX_UNPACKED}B cap -- "
+            "refusing to expand it")
+
+    m = members[0]
+    with z.open(m) as fh:
+        raw = fh.read(MAX_UNPACKED + 1)
+    if len(raw) > MAX_UNPACKED:
+        raise Untrusted("archive expanded past its declared size")
+
+    df = pd.read_csv(io.BytesIO(raw))
     df.columns = [c.strip() for c in df.columns]
     return df
 
@@ -123,6 +166,8 @@ def bhavcopy(day, *, series: tuple[str, ...] = EQUITY_SERIES,
     for url, mapping in attempts:
         try:
             r = _get(url)
+            # The archive answers 200 with an HTML error page rather than a
+            # 4xx, so status alone is not evidence that this is a bhavcopy.
             if r.status_code == 200 and len(r.content) > 1000:
                 out = _normalise(_read_zip(r.content), mapping, d, series)
                 if len(out):
@@ -169,5 +214,5 @@ def returns(frames: dict, symbol: str) -> pd.Series:
             rows.append((pd.Timestamp(d), float(hit.iloc[0]["close"])))
     if not rows:
         return pd.Series(dtype="float64")
-    s = pd.Series({d: c for d, c in rows}).sort_index()
+    s = pd.Series(dict(rows)).sort_index()
     return s.pct_change()

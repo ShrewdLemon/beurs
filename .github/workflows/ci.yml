@@ -24,3 +24,60 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e ".[dev]"
       - run: pytest tests/ -q
+
+  minimal-install:
+    # bourse must import and audit with pandas alone. Every optional dependency
+    # is optional, and a stray top-level import of yfinance or
+    # exchange_calendars would break every user who installed the base package.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e .
+      - name: import and audit with no optional dependencies
+        run: |
+          python - <<'PY'
+          import sys, pandas as pd, bourse
+          for mod in ("yfinance", "exchange_calendars", "curl_cffi"):
+              assert mod not in sys.modules, f"{mod} imported at package import"
+          days = bourse.sessions("2024-02-01", "2024-04-30", exchange="NSE")
+          idx = pd.DatetimeIndex([pd.Timestamp(d) for d in days])
+          df = pd.DataFrame({"Open": 1.0, "High": 1.0, "Low": 1.0,
+                             "Close": 1.0, "Volume": 1}, index=idx)
+          assert bourse.audit(df, "X", exchange="NSE").clean
+          assert bourse.repair(df, "X", exchange="NSE").log.n_changed == 0
+          assert "NSE" in bourse.status()
+          print("ok: audit, repair and the verified calendar work on pandas alone")
+          PY
+      - name: a sourced venue must fail with a useful message, not a traceback
+        run: |
+          python - <<'PY'
+          import bourse
+          try:
+              bourse.sessions("2024-01-01", "2024-12-31", exchange="HKEX")
+          except bourse.UnknownExchange as e:
+              assert "bourse[global]" in str(e), e
+              print("ok:", e)
+          else:
+              raise SystemExit("expected UnknownExchange without exchange_calendars")
+          PY
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install ruff
+      - run: ruff check bourse/ tests/
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install bandit pip-audit
+      - run: bandit -r bourse/ -ll
+      - run: pip-audit --skip-editable || true

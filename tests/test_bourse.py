@@ -89,7 +89,7 @@ def test_holiday_comparison_cannot_see_the_defect():
     truth = bourse.sessions("2024-01-01", "2024-12-31")
     broken = [d for d in truth if d not in WEEKEND_SESSIONS]
     have_t, have_b = set(truth), set(broken)
-    weekday_holidays = lambda have: {  # noqa: E731
+    weekday_holidays = lambda have: {
         d for d in pd.date_range("2024-01-01", "2024-12-31")
         if d.weekday() < 5 and d.date() not in have}
     assert weekday_holidays(have_t) == weekday_holidays(have_b)   # identical!
@@ -111,21 +111,21 @@ def _frame(dates, close=100.0, volume=1000, flat=()):
 
 def test_a_clean_series_is_clean():
     days = bourse.sessions("2024-02-01", "2024-04-30")
-    rep = bourse.audit(_frame(days), "TEST")
+    rep = bourse.audit(_frame(days), "TEST", exchange="NSE")
     assert rep.clean and rep.n_rows == len(days)
 
 
 def test_missing_weekend_sessions_are_reported():
     days = [d for d in bourse.sessions("2024-01-02", "2024-06-28")
             if d not in WEEKEND_SESSIONS]
-    rep = bourse.audit(_frame(days), "TEST")
+    rep = bourse.audit(_frame(days), "TEST", exchange="NSE")
     assert len(rep["missing_sessions"]) == 3      # 20 Jan, 2 Mar, 18 May
 
 
 def test_phantom_rows_on_non_sessions_are_reported():
     days = bourse.sessions("2024-02-01", "2024-04-30")
     with_holiday = days + [date(2024, 3, 8)]      # a non-session
-    rep = bourse.audit(_frame(with_holiday, flat=[date(2024, 3, 8)]), "TEST")
+    rep = bourse.audit(_frame(with_holiday, flat=[date(2024, 3, 8)]), "TEST", exchange="NSE")
     f = rep["phantom_rows"]
     assert f and date(2024, 3, 8) in f.dates
 
@@ -134,7 +134,7 @@ def test_a_flat_row_on_a_REAL_session_is_stale_not_phantom():
     """The distinction that matters. Deleting a stale row throws away a real
     market-wide move; keeping a phantom invents a 0% return."""
     days = bourse.sessions("2024-02-01", "2024-04-30")
-    rep = bourse.audit(_frame(days, flat=[days[10]]), "TEST")
+    rep = bourse.audit(_frame(days, flat=[days[10]]), "TEST", exchange="NSE")
     assert rep["stale_sessions"] and days[10] in rep["stale_sessions"].dates
     assert rep["phantom_rows"] is None
 
@@ -153,14 +153,14 @@ def test_a_fabricated_jump_is_caught_and_a_real_split_is_not():
     raw_flat = pd.Series([100.0] * n, index=idx)
     df = pd.DataFrame({"Open": adj, "High": adj, "Low": adj, "Close": adj,
                        "Volume": 1000}, index=idx)
-    assert bourse.audit(df, "FAKE", exchange_close=raw_flat)["fabricated_jumps"]
+    assert bourse.audit(df, "FAKE", exchange="NSE", exchange_close=raw_flat)["fabricated_jumps"]
 
     # Real: the exchange printed the same move, so the factor rise is explained.
     raw_moved = pd.Series([100.0] * k + [50.0] * (n - k), index=idx)
     adj_ok = pd.Series([50.0] * n, index=idx)
     df2 = pd.DataFrame({"Open": adj_ok, "High": adj_ok, "Low": adj_ok,
                         "Close": adj_ok, "Volume": 1000}, index=idx)
-    assert bourse.audit(df2, "REAL", exchange_close=raw_moved)["fabricated_jumps"] is None
+    assert bourse.audit(df2, "REAL", exchange="NSE", exchange_close=raw_moved)["fabricated_jumps"] is None
 
 
 def test_multiindex_columns_are_handled():
@@ -169,19 +169,19 @@ def test_multiindex_columns_are_handled():
     days = bourse.sessions("2024-02-01", "2024-03-28")
     df = _frame(days)
     df.columns = pd.MultiIndex.from_product([df.columns, ["TEST.NS"]])
-    assert bourse.audit(df, "TEST").n_rows == len(days)
+    assert bourse.audit(df, "TEST", exchange="NSE").n_rows == len(days)
 
 
 def test_audit_many_returns_a_row_per_symbol():
     days = bourse.sessions("2024-02-01", "2024-03-28")
-    out = bourse.audit_many({"A": _frame(days), "B": _frame(days)})
+    out = bourse.audit_many({"A": _frame(days), "B": _frame(days)}, exchange="NSE")
     assert len(out) == 2 and set(out["symbol"]) == {"A", "B"}
     assert out["clean"].all()
 
 
 def test_a_frame_with_no_close_column_names_the_problem():
     with pytest.raises(KeyError, match="no Close column"):
-        bourse.audit(pd.DataFrame({"px": [1, 2]}), "TEST")
+        bourse.audit(pd.DataFrame({"px": [1, 2]}), "TEST", exchange="NSE")
 
 
 # ------------------------------------------------------------------- global
@@ -225,5 +225,30 @@ def test_the_same_frame_is_wrong_on_the_wrong_calendar():
 def test_explain_names_every_finding():
     days = [d for d in bourse.sessions("2024-01-02", "2024-06-28")
             if d not in WEEKEND_SESSIONS]
-    text = bourse.audit(_frame(days), "TEST").explain()
+    text = bourse.audit(_frame(days), "TEST", exchange="NSE").explain()
     assert "missing_sessions" in text and "weekend" in text.lower()
+
+
+# ------------------------------------------------- rows on non-sessions
+
+def test_a_full_volume_row_on_a_non_session_is_reported():
+    """Distinct from a phantom: this row has real volume, so it is not a
+    placeholder. Either the calendar is wrong or the series is not this venue's."""
+    days = bourse.sessions("2024-02-01", "2024-04-30")
+    holiday = date(2024, 3, 8)                     # NSE was shut
+    assert holiday not in days
+    df = _frame(sorted(days + [holiday]))          # volume 1000, not flat-zero
+
+    rep = bourse.audit(df, "TEST", exchange="NSE")
+    assert rep["unexpected_sessions"].dates == (holiday,)
+    assert rep["phantom_rows"] is None             # not double-counted
+
+
+def test_a_zero_volume_row_on_a_non_session_stays_a_phantom():
+    days = bourse.sessions("2024-02-01", "2024-04-30")
+    holiday = date(2024, 3, 8)
+    df = _frame(sorted(days + [holiday]), flat=[holiday])
+
+    rep = bourse.audit(df, "TEST", exchange="NSE")
+    assert rep["phantom_rows"].dates == (holiday,)
+    assert rep["unexpected_sessions"] is None
