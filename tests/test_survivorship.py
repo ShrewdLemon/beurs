@@ -13,7 +13,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import bourse
+import beurs
 
 
 def _series(days):
@@ -38,7 +38,7 @@ DAYS = None
 def _days():
     global DAYS
     if DAYS is None:
-        DAYS = bourse.sessions("2024-01-02", "2024-12-31", exchange="NSE")
+        DAYS = beurs.sessions("2024-01-02", "2024-12-31", exchange="NSE")
     return DAYS
 
 
@@ -46,7 +46,7 @@ def test_an_empty_frame_is_a_finding_not_a_skip():
     """This is the whole point: the API did not raise, so a normal loop would
     have dropped the name without anyone noticing."""
     days = _days()
-    out = bourse.screen(
+    out = beurs.screen(
         ["ALIVE", "DEAD"], start="2024-01-02", end="2024-12-31", exchange="NSE",
         download=_fake({"ALIVE": _series(days), "DEAD": pd.DataFrame()}))
 
@@ -57,7 +57,7 @@ def test_an_empty_frame_is_a_finding_not_a_skip():
 
 
 def test_none_counts_as_empty_too():
-    out = bourse.screen(["X"], start="2024-01-02", end="2024-12-31",
+    out = beurs.screen(["X"], start="2024-01-02", end="2024-12-31",
                         exchange="NSE", download=_fake({"X": None}))
     assert out.empty == ["X"]
 
@@ -66,7 +66,7 @@ def test_a_short_series_is_separated_from_a_full_one():
     """The insidious case: the frame is NOT empty, so every length check and
     every try/except passes, and the name still biases the universe."""
     days = _days()
-    out = bourse.screen(
+    out = beurs.screen(
         ["FULL", "IPO"], start="2024-01-02", end="2024-12-31", exchange="NSE",
         download=_fake({"FULL": _series(days), "IPO": _series(days[-20:])}))
 
@@ -78,7 +78,7 @@ def test_a_short_series_is_separated_from_a_full_one():
 def test_an_exception_is_an_error_not_a_delisting():
     """A network failure is not evidence about the listing. Keeping them apart
     stops a flaky connection being read as survivorship bias."""
-    out = bourse.screen(["BOOM"], start="2024-01-02", end="2024-12-31",
+    out = beurs.screen(["BOOM"], start="2024-01-02", end="2024-12-31",
                         exchange="NSE",
                         download=_fake({"BOOM": ConnectionError("timeout")}))
     assert out.errors == ["BOOM"]
@@ -88,7 +88,7 @@ def test_an_exception_is_an_error_not_a_delisting():
 
 def test_a_universe_with_no_drops_says_so_plainly():
     days = _days()
-    out = bourse.screen(["A", "B"], start="2024-01-02", end="2024-12-31",
+    out = beurs.screen(["A", "B"], start="2024-01-02", end="2024-12-31",
                         exchange="NSE",
                         download=_fake({"A": _series(days), "B": _series(days)}))
     assert not out.biased
@@ -98,7 +98,7 @@ def test_a_universe_with_no_drops_says_so_plainly():
 
 def test_the_summary_quantifies_the_bias():
     days = _days()
-    out = bourse.screen(
+    out = beurs.screen(
         ["A", "B", "C", "D"], start="2024-01-02", end="2024-12-31",
         exchange="NSE",
         download=_fake({"A": _series(days), "B": pd.DataFrame(),
@@ -110,7 +110,7 @@ def test_the_summary_quantifies_the_bias():
 
 def test_screen_returns_a_frame_for_further_work():
     days = _days()
-    out = bourse.screen(["A", "B"], start="2024-01-02", end="2024-12-31",
+    out = beurs.screen(["A", "B"], start="2024-01-02", end="2024-12-31",
                         exchange="NSE",
                         download=_fake({"A": _series(days), "B": pd.DataFrame()}))
     df = out.to_frame()
@@ -121,7 +121,7 @@ def test_screen_returns_a_frame_for_further_work():
 def test_the_venue_is_inferred_from_the_tickers():
     """A list is normally one market, so naming it should not be mandatory."""
     days = _days()
-    out = bourse.screen(["RELIANCE.NS", "TCS.NS"], start="2024-01-02",
+    out = beurs.screen(["RELIANCE.NS", "TCS.NS"], start="2024-01-02",
                         end="2024-12-31",
                         download=_fake({"RELIANCE.NS": _series(days),
                                         "TCS.NS": _series(days)}))
@@ -138,8 +138,8 @@ def test_parallel_and_serial_screens_agree_and_keep_input_order():
     kw = {"start": "2024-01-02", "end": "2024-12-31", "exchange": "NSE",
           "download": _fake(mapping)}
 
-    par = bourse.screen(order, workers=4, **kw)
-    ser = bourse.screen(order, workers=1, **kw)
+    par = beurs.screen(order, workers=4, **kw)
+    ser = beurs.screen(order, workers=1, **kw)
 
     assert [r.ticker for r in par.rows] == order
     assert [r.ticker for r in ser.rows] == order

@@ -12,7 +12,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from bourse.cli import CLEAN, FAILED, _read_tickers, main
+from beurs.cli import CLEAN, FAILED, _read_tickers, main
 
 
 def test_venues_lists_every_exchange(capsys):

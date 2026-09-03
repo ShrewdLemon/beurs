@@ -1,0 +1,73 @@
+name: publish
+
+# Publishes to PyPI when a version tag is pushed:  git tag v0.2.0 && git push --tags
+#
+# Uses PyPI Trusted Publishing (OIDC), so there is NO API token stored in this
+# repository. A leaked token is the usual way a package supply chain is
+# compromised; a short-lived OIDC credential minted per run cannot be leaked
+# from a repo that never holds one.
+#
+# One-time setup, at https://pypi.org/manage/account/publishing/ :
+#   PyPI project name  beurs
+#   Owner              ShrewdLemon
+#   Repository         beurs
+#   Workflow           publish.yml
+#   Environment        pypi
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      - run: pip install build twine
+      - run: python -m build
+      - run: twine check dist/*
+
+      # Never publish a tag whose tests do not pass, and never publish an
+      # artifact that does not install. The wheel is exercised from the built
+      # file rather than the working tree, so a packaging mistake -- a missing
+      # data file, an sdist with no package in it -- fails here and not for a user.
+      - name: the built wheel must install and work on pandas alone
+        run: |
+          python -m venv /tmp/v && /tmp/v/bin/pip install -q dist/*.whl
+          /tmp/v/bin/python - <<'PY'
+          import sys, pandas as pd, beurs
+          for m in ("yfinance", "exchange_calendars", "curl_cffi"):
+              assert m not in sys.modules, f"{m} imported at package import"
+          days = beurs.sessions("2024-02-01", "2024-04-30", exchange="NSE")
+          idx = pd.DatetimeIndex([pd.Timestamp(d) for d in days])
+          df = pd.DataFrame({"Open": 1.0, "High": 1.0, "Low": 1.0,
+                             "Close": 1.0, "Volume": 1}, index=idx)
+          assert beurs.audit(df, "X", exchange="NSE").clean
+          assert beurs.repair(df, "X", exchange="NSE").log.n_changed == 0
+          print("wheel ok:", beurs.__version__, len(beurs.EXCHANGES), "venues")
+          PY
+          /tmp/v/bin/beurs --version
+
+      - name: the tag must match the version being published
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          ver=$(/tmp/v/bin/python -c "import beurs; print(beurs.__version__)")
+          [ "$tag" = "$ver" ] || { echo "tag $tag != version $ver"; exit 1; }
+        if: startsWith(github.ref, 'refs/tags/v')
+
+      - uses: actions/upload-artifact@v4
+        with: { name: dist, path: dist/ }
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write          # the OIDC credential; no token is stored anywhere
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: dist, path: dist/ }
+      - uses: pypa/gh-action-pypi-publish@release/v1

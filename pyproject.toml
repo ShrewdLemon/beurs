@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "bourse"
+name = "beurs"
 version = "0.2.0"
 description = "Market data that does not lie to you: audit, repair and screen any price series against the exchange that produced it. 54 venues."
 readme = "README.md"
@@ -31,21 +31,21 @@ dev = ["pytest>=8.0", "curl_cffi>=0.7", "yfinance>=0.2",
        "exchange_calendars>=4.5", "pyarrow>=15.0"]
 
 [project.scripts]
-bourse = "bourse.cli:main"
+beurs = "beurs.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/ShrewdLemon/bourse"
-Traps = "https://github.com/ShrewdLemon/bourse/blob/main/TRAPS.md"
-Issues = "https://github.com/ShrewdLemon/bourse/issues"
-Security = "https://github.com/ShrewdLemon/bourse/blob/main/SECURITY.md"
+Homepage = "https://github.com/ShrewdLemon/beurs"
+Traps = "https://github.com/ShrewdLemon/beurs/blob/main/TRAPS.md"
+Issues = "https://github.com/ShrewdLemon/beurs/issues"
+Security = "https://github.com/ShrewdLemon/beurs/blob/main/SECURITY.md"
 
 [tool.hatch.build.targets.wheel]
-packages = ["bourse"]
+packages = ["beurs"]
 
 # Without this the sdist ships metadata and nothing else -- no package, no
 # tests -- and `pip install --no-binary` fails outright.
 [tool.hatch.build.targets.sdist]
-include = ["bourse", "tests", "README.md", "TRAPS.md", "SECURITY.md",
+include = ["beurs", "tests", "README.md", "TRAPS.md", "SECURITY.md",
            "CONTRIBUTING.md", "DISCLAIMER.md", "LICENSE", "pyproject.toml"]
 
 [tool.hatch.build]

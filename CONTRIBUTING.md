@@ -10,13 +10,13 @@ A trap is not "this data looks wrong". It is:
    exception is raised.
 
 Traps that meet that bar go in `TRAPS.md`. If the check generalises, it goes in
-`bourse/audit.py` with a test.
+`beurs/audit.py` with a test.
 
 ## Adding an exchange
 
 Calendars carry provenance. Two ways in:
 
-- **`sourced`** — add an entry to `EXCHANGES` in `bourse/calendars.py` pointing
+- **`sourced`** — add an entry to `EXCHANGES` in `beurs/calendars.py` pointing
   at an `exchange_calendars` name. Low effort, and honest: the package says the
   calendar was not independently checked.
 - **`verified`** — ship a session list probed against the exchange's own

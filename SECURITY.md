@@ -2,13 +2,13 @@
 
 ## Reporting
 
-Open an issue at https://github.com/ShrewdLemon/bourse/issues. For anything you
+Open an issue at https://github.com/ShrewdLemon/beurs/issues. For anything you
 believe should not be public first, mark the issue title `[security]` and leave
 out the details until we have a private channel.
 
 ## Threat model
 
-bourse is a library that reads data you already have, plus one optional network
+beurs is a library that reads data you already have, plus one optional network
 fetch from NSE's public archive. It has no server, no credentials, no telemetry,
 and no persistent state beyond an optional parquet cache you name yourself.
 
@@ -24,16 +24,16 @@ traversal test that exists to fail loudly if anyone ever refactors to
 `extractall()`.
 
 **Optional dependencies.** `yfinance`, `curl_cffi` and `exchange_calendars` are
-not required to import bourse. The audit, repair and calendar paths run on
+not required to import beurs. The audit, repair and calendar paths run on
 pandas alone.
 
 **No dynamic execution.** No `eval`, `exec`, `pickle`, `subprocess`, or
 `yaml.load` anywhere in the package.
 
-**File writes.** Only to paths you pass (`repair -o`, `cache_dir`). bourse does
+**File writes.** Only to paths you pass (`repair -o`, `cache_dir`). beurs does
 not choose locations on your behalf.
 
-## What bourse does not protect you from
+## What beurs does not protect you from
 
 It checks data quality, not authenticity. If your source is compromised and
 returns internally consistent fabricated prices, no check here will notice —

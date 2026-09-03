@@ -3,7 +3,7 @@
 Exchange-agnostic. Every check below is a failure mode of a price API against a
 trading calendar, not of any one market -- the same bugs appear on US tickers.
 What differs by venue is the calendar you check against, which is why `exchange`
-is a parameter and why `bourse.calendars` states its provenance.
+is a parameter and why `beurs.calendars` states its provenance.
 
     fabricated_jumps   The adjusted series carries a price change that never
                        happened, because a split factor was applied to PART of
@@ -100,7 +100,7 @@ class Report:
     def _venue_warning(self) -> str:
         return (f"\n  (venue inferred as {self.exchange} from {self.symbol!r}; "
                 f"if that is wrong so is everything above -- pass exchange=, "
-                f"see bourse.status())")
+                f"see beurs.status())")
 
     def summary(self) -> str:
         if self.clean:
@@ -192,9 +192,9 @@ def audit(df: pd.DataFrame, symbol: str, *, exchange: str = cals.AUTO,
     jumps -- because the exchange's own price is the only way to tell an
     invented -33% day from a real one.
 
-    >>> import yfinance as yf, bourse
+    >>> import yfinance as yf, beurs
     >>> df = yf.download("AAPL", start="2023-01-01", end="2024-01-01")
-    >>> bourse.audit(df, "AAPL", exchange="NASDAQ").summary()
+    >>> beurs.audit(df, "AAPL", exchange="NASDAQ").summary()
     'AAPL [NASDAQ]: clean (250 rows / 250 sessions)'
     """
     ex = cals.resolve(exchange, symbol)

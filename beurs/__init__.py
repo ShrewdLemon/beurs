@@ -1,11 +1,11 @@
-"""bourse -- market data that does not lie to you.
+"""beurs -- market data that does not lie to you.
 
 Audit any price series against the exchange that produced it.
 
-    import yfinance as yf, bourse
+    import yfinance as yf, beurs
 
     df = yf.download("TRENT.NS", start="2023-01-01", end="2026-07-01")
-    print(bourse.audit(df, "TRENT", exchange="NSE").explain())
+    print(beurs.audit(df, "TRENT", exchange="NSE").explain())
 
 Fifty-four venues across every major market. `exchange` defaults to "auto",
 which reads the venue off the ticker suffix. The failure modes are properties of
@@ -13,14 +13,14 @@ price APIs, not of any one market.
 
 Three things it does:
 
-    bourse.audit(df, "TRENT.NS")     what is wrong with this series
-    bourse.repair(df, "TRENT.NS")    hand me back one I can use
-    bourse.screen(universe)          which of these silently return nothing
+    beurs.audit(df, "TRENT.NS")     what is wrong with this series
+    beurs.repair(df, "TRENT.NS")    hand me back one I can use
+    beurs.screen(universe)          which of these silently return nothing
 
 Calendars carry their provenance: NSE is shipped VERIFIED against the exchange's
 own record (exchange_calendars has no XNSE and its XBOM is wrong for Indian
 equities); the rest are SOURCED from exchange_calendars, which is correct for
-them. `bourse.status()` prints the table.
+them. `beurs.status()` prints the table.
 
 See TRAPS.md for the 13 measured failure modes this came from.
 """

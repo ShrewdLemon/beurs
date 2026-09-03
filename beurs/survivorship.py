@@ -127,7 +127,7 @@ def screen(tickers, *, start: str = "2023-01-01", end: str = "2026-06-30",
            workers: int = 8, download=None) -> Screen:
     """Ask for every ticker and report which ones silently return nothing.
 
-    >>> bourse.screen(["AAPL", "NKLA", "BBBYQ"]).summary()
+    >>> beurs.screen(["AAPL", "NKLA", "BBBYQ"]).summary()
 
     `min_fraction` is the share of the window's expected sessions below which a
     result counts as `short` rather than `ok`.
@@ -201,6 +201,6 @@ def _yf_download(ticker: str, start, end):
     try:
         import yfinance as yf
     except ImportError as e:                               # pragma: no cover
-        raise RuntimeError("screen() needs yfinance: pip install bourse[fetch]") from e
+        raise RuntimeError("screen() needs yfinance: pip install beurs[fetch]") from e
     return yf.download(ticker, start=start, end=end, auto_adjust=True,
                        progress=False, threads=False)

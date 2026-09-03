@@ -1,7 +1,7 @@
 # 13 measured traps in Indian market data
 
 All thirteen were hit, measured and fixed while building a real study. Four of
-them are automated by [`bourse.audit`](README.md); the rest are documented here
+them are automated by [`beurs.audit`](README.md); the rest are documented here
 because they are just as costly and not yet checkable in code.
 
 Every one of these was hit, measured, and fixed while building a pre-registered
@@ -298,15 +298,15 @@ Every claim above is checked by code in this repository:
 
 | trap | automated by |
 |---|---|
-| 1 fabricated jumps | `bourse.audit(..., exchange_close=...)` |
-| 2 stale sessions | `bourse.audit` |
-| 3 phantom rows | `bourse.audit` |
-| 4 wrong calendars | `bourse.sessions`, `bourse.audit_calendar` |
-| 11 bhavcopy paths | `bourse.bhavcopy` |
+| 1 fabricated jumps | `beurs.audit(..., exchange_close=...)` |
+| 2 stale sessions | `beurs.audit` |
+| 3 phantom rows | `beurs.audit` |
+| 4 wrong calendars | `beurs.sessions`, `beurs.audit_calendar` |
+| 11 bhavcopy paths | `beurs.bhavcopy` |
 | 5, 6, 7, 8, 9, 10, 12, 13 | documented here; see [alpha](https://github.com/ShrewdLemon/alpha) for working code |
 
 ```bash
-pip install bourse[all]
+pip install beurs[all]
 python -m pytest tests/ -q
 ```
 

@@ -91,7 +91,7 @@ def repair(df: pd.DataFrame, symbol: str, *, exchange: str = cals.AUTO,
            reindex: bool = True) -> Repaired:
     """Return a corrected copy of `df`, plus a log of every change.
 
-    >>> out = bourse.repair(df, "TRENT", exchange="NSE")
+    >>> out = beurs.repair(df, "TRENT", exchange="NSE")
     >>> out.log.summary()
     'TRENT [NSE]: dropped_phantoms=4 nulled_stale=1 inserted_missing=5'
     >>> out.frame          # ready to use; gaps are NaN, not absent

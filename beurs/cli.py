@@ -1,10 +1,10 @@
 """Command line: answer "is my data lying to me" without writing any Python.
 
-    bourse audit  TRENT.NS                 what is wrong with this series
-    bourse repair TRENT.NS -o clean.csv    hand me back one I can use
-    bourse screen tickers.txt              which of these silently return nothing
-    bourse venues                          54 exchanges and their provenance
-    bourse sessions 2024-01-01 2024-12-31 -e NYSE
+    beurs audit  TRENT.NS                 what is wrong with this series
+    beurs repair TRENT.NS -o clean.csv    hand me back one I can use
+    beurs screen tickers.txt              which of these silently return nothing
+    beurs venues                          54 exchanges and their provenance
+    beurs sessions 2024-01-01 2024-12-31 -e NYSE
 
 The venue is inferred from the ticker suffix, so `-e` is optional: `.NS` is
 India, `.HK` is Hong Kong, a bare symbol is the US calendar.
@@ -34,7 +34,7 @@ def _download(tickers: list[str], start: str, end: str) -> dict:
     try:
         import yfinance as yf
     except ImportError as e:
-        _err("this command needs yfinance:  pip install 'bourse[fetch]'")
+        _err("this command needs yfinance:  pip install 'beurs[fetch]'")
         raise SystemExit(FAILED) from e
     out = {}
     for t in tickers:
@@ -47,7 +47,7 @@ def _download(tickers: list[str], start: str, end: str) -> dict:
         if df is None or df.empty:
             _err(f"  {t}: NO DATA RETURNED, and no exception was raised. A "
                  f"delisted or renamed name looks exactly like this. Run "
-                 f"`bourse screen` to check a whole universe for it.")
+                 f"`beurs screen` to check a whole universe for it.")
             continue
         out[t] = df
     return out
@@ -56,7 +56,7 @@ def _download(tickers: list[str], start: str, end: str) -> dict:
 def _read_tickers(args: list[str]) -> list[str]:
     """Accept tickers inline, from a file, or on stdin.
 
-    `bourse screen universe.txt` and `cat universe.txt | bourse screen -` both
+    `beurs screen universe.txt` and `cat universe.txt | beurs screen -` both
     work, because a universe is normally already in a file somewhere.
     """
     out: list[str] = []
@@ -140,11 +140,11 @@ def cmd_venues(a) -> int:
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(
-        prog="bourse",
+        prog="beurs",
         description="Audit, repair and screen market data against the exchange "
                     "that produced it. 54 venues.",
         epilog="exit codes: 0 clean, 1 could not run, 2 findings")
-    p.add_argument("--version", action="version", version=f"bourse {__version__}")
+    p.add_argument("--version", action="version", version=f"beurs {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     def window(sp, exchange_default=cals.AUTO):

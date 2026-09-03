@@ -26,7 +26,7 @@ remove it -- so this package does not.
 
 THE CHECK MOST PEOPLE RUN CANNOT SEE THE DEFECT. Comparing weekday HOLIDAY LISTS
 matches 15/15 for 2023 and 16/16 for 2024 against a calendar missing every
-weekend session. Diff the full session set: `bourse.audit_calendar`.
+weekend session. Diff the full session set: `beurs.audit_calendar`.
 
 TICKER INFERENCE. `exchange="auto"` reads the venue off the symbol suffix, so
 `0700.HK` is audited against Hong Kong and `RELIANCE.NS` against India without
@@ -77,7 +77,7 @@ def _x(code, name, ec, country, ccy, suffixes=(), note="", prov=SOURCED):
     return Exchange(code, name, prov, ec, country, ccy, tuple(suffixes), note)
 
 
-# Ordered roughly by region so `bourse status` reads like an atlas.
+# Ordered roughly by region so `beurs status` reads like an atlas.
 EXCHANGES: dict[str, Exchange] = {e.code: e for e in [
     # ---- Asia-Pacific -----------------------------------------------------
     Exchange("NSE", "National Stock Exchange of India", VERIFIED, None,
@@ -243,7 +243,7 @@ def _calendar(ec_name: str):
     except ImportError as e:                              # pragma: no cover
         raise UnknownExchange(
             "this exchange's calendar comes from `exchange_calendars`, which is "
-            "not installed. pip install 'bourse[global]'") from e
+            "not installed. pip install 'beurs[global]'") from e
     return xc.get_calendar(ec_name)
 
 
@@ -383,7 +383,7 @@ def status(full: bool = False) -> str:
                 lo, hi = coverage(ex.code)
                 line += f"  {lo} .. {hi}"
             except Exception:                             # noqa: BLE001
-                line += "  unavailable (pip install 'bourse[global]')"
+                line += "  unavailable (pip install 'beurs[global]')"
         rows.append(line)
     n_v = sum(e.provenance == VERIFIED for e in exchanges())
     rows += ["",

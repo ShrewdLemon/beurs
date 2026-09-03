@@ -1,30 +1,37 @@
-# bourse
+# beurs
 
-[![tests](https://github.com/ShrewdLemon/bourse/actions/workflows/ci.yml/badge.svg)](https://github.com/ShrewdLemon/bourse/actions/workflows/ci.yml)
-[![python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://github.com/ShrewdLemon/bourse)
+[![tests](https://github.com/ShrewdLemon/beurs/actions/workflows/ci.yml/badge.svg)](https://github.com/ShrewdLemon/beurs/actions/workflows/ci.yml)
+[![python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://github.com/ShrewdLemon/beurs)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![pypi](https://img.shields.io/pypi/v/beurs?color=blue)](https://pypi.org/project/beurs/)
 [![venues](https://img.shields.io/badge/venues-54-orange)](#54-venues-each-carrying-its-provenance)
 
 **Market data that does not lie to you.**
 
 Your price API does not raise an exception when it is wrong. It returns a frame,
-and the frame looks fine. bourse finds the failures, fixes what can be fixed,
+and the frame looks fine. beurs finds the failures, fixes what can be fixed,
 and tells you what cannot.
 
 ```bash
-pip install git+https://github.com/ShrewdLemon/bourse
+pip install beurs           # audit, repair, verified NSE calendar
+pip install 'beurs[all]'    # + 53 more venues and live fetching
 ```
+
+<sub><i>beurs</i> — Dutch for exchange, after the Van der Beurze family whose
+Bruges house the merchants met at in the 1300s. Every other word for the thing
+descends from it: bourse, borsa, börse, and the Beurs van Berlage still standing
+in Amsterdam.</sub>
 
 ---
 
 ## Three things, on 54 exchanges
 
 ```python
-import bourse
+import beurs
 
-bourse.audit(df,  "TRENT.NS")     # what is wrong with this series
-bourse.repair(df, "TRENT.NS")     # hand me back one I can use
-bourse.screen(universe)           # which of these silently return nothing
+beurs.audit(df,  "TRENT.NS")     # what is wrong with this series
+beurs.repair(df, "TRENT.NS")     # hand me back one I can use
+beurs.screen(universe)           # which of these silently return nothing
 ```
 
 The venue is read off the ticker suffix — `.NS` is India, `.HK` is Hong Kong, a
@@ -35,7 +42,7 @@ bare symbol is the US calendar — so you rarely have to say.
 ## 1. Your universe is smaller than you think
 
 ```python
->>> print(bourse.screen(["SIRI","LCID","PLUG","NKLA","AMC","GME","MULN","BBBYQ",
+>>> print(beurs.screen(["SIRI","LCID","PLUG","NKLA","AMC","GME","MULN","BBBYQ",
 ...                      "WE","CVNA","SNDL","FFIE","ATER","GNUS","RIDE"]).summary())
 ```
 ```
@@ -65,7 +72,7 @@ is non-empty, so every length check and every `try/except` passes.
 ## 2. A fifth of the Israeli trading year is missing
 
 ```console
-$ bourse audit TEVA.TA -v
+$ beurs audit TEVA.TA -v
 ```
 ```
 TEVA.TA [TASE]: missing_sessions=51 dropped_weekday=51 stale_sessions=3
@@ -95,7 +102,7 @@ published far in advance:
 A linter gets tried once. A formatter gets kept.
 
 ```python
->>> out = bourse.repair(df, "TEVA.TA")
+>>> out = beurs.repair(df, "TEVA.TA")
 >>> print(out.log.summary())
 TEVA.TA [TASE]: nulled_stale=3 inserted_missing=51
 >>> out.frame        # ready to use
@@ -175,12 +182,12 @@ isn't there.
 ## From the command line
 
 ```console
-$ bourse screen universe.txt          # or: cat tickers | bourse screen -
-$ bourse audit TRENT.NS -v
-$ bourse audit RELIANCE.NS TCS.NS INFY.NS      # table, worst first
-$ bourse repair TRENT.NS -o clean.csv
-$ bourse venues                       # 54 exchanges and their provenance
-$ bourse sessions 2024-01-01 2024-12-31 -e NYSE -n
+$ beurs screen universe.txt          # or: cat tickers | beurs screen -
+$ beurs audit TRENT.NS -v
+$ beurs audit RELIANCE.NS TCS.NS INFY.NS      # table, worst first
+$ beurs repair TRENT.NS -o clean.csv
+$ beurs venues                       # 54 exchanges and their provenance
+$ beurs sessions 2024-01-01 2024-12-31 -e NYSE -n
 252
 ```
 
@@ -188,7 +195,7 @@ Exit codes are the interface: **0 clean, 1 could not run, 2 findings.** Drops
 straight into CI as a data-quality gate.
 
 ```yaml
-- run: bourse screen universe.txt && bourse audit RELIANCE.NS TCS.NS
+- run: beurs screen universe.txt && beurs audit RELIANCE.NS TCS.NS
 ```
 
 ---
@@ -196,7 +203,7 @@ straight into CI as a data-quality gate.
 ## 54 venues, each carrying its provenance
 
 ```console
-$ bourse venues
+$ beurs venues
 NSE    National Stock Exchange of India  India       INR  .NS  verified
 US     US equities (NYSE / Nasdaq)       United ...  USD  -    sourced
 HKEX   Hong Kong Exchanges               Hong Kong   HKD  .HK  sourced
@@ -220,7 +227,7 @@ equities. Over 2023-01-01 to 2026-06-30, where the truth is **864 sessions**:
 
 | source | sessions | defect |
 |---|---|---|
-| **bourse** | **864** | probed from NSE's own archive |
+| **beurs** | **864** | probed from NSE's own archive |
 | `exchange_calendars` XBOM | 858 | misses 6; never invents |
 | `pandas_market_calendars` NSE | 859 | misses 8 **and invents 3** |
 | yfinance `^NSEI` dates | 859 | misses 5 |
@@ -235,7 +242,7 @@ weekend session. Diff the full session set instead:
 
 ```python
 idx = yf.download("^NSEI", start="2023-01-01", end="2026-07-01").index
-bourse.audit_calendar(idx, exchange="NSE")["missing"]
+beurs.audit_calendar(idx, exchange="NSE")["missing"]
 # [date(2023,11,12), date(2024,1,20), date(2024,3,2), date(2024,5,18), date(2026,2,1)]
 ```
 
@@ -243,12 +250,12 @@ bourse.audit_calendar(idx, exchange="NSE")["missing"]
 
 ## Works with what you already use
 
-bourse does not fetch your prices — it **checks them**.
+beurs does not fetch your prices — it **checks them**.
 
-| you use | bourse adds |
+| you use | beurs adds |
 |---|---|
 | [`yfinance`](https://github.com/ranaroussi/yfinance) | finds the fabricated jumps, dropped weekdays, stale sessions and phantom rows in its output |
-| [`exchange_calendars`](https://github.com/gerrymanoim/exchange_calendars) | used directly for 53 venues; bourse fills the NSE gap it does not cover |
+| [`exchange_calendars`](https://github.com/gerrymanoim/exchange_calendars) | used directly for 53 venues; beurs fills the NSE gap it does not cover |
 | [`jugaad-data`](https://github.com/jugaad-py/jugaad-data), [`nsepython`](https://github.com/aeron7/nsepython) | a verified NSE calendar to check their coverage against |
 | any backtester | a pre-flight check, so you find out before the backtest rather than after |
 
@@ -260,35 +267,35 @@ database, no config file.
 ## API
 
 ```python
-import bourse
+import beurs
 
 # Audit
-bourse.audit(df, "0700.HK")                       # venue inferred
-bourse.audit(df, "TRENT", exchange="NSE")         # or named
-bourse.audit(df, "TRENT", exchange="NSE",
+beurs.audit(df, "0700.HK")                       # venue inferred
+beurs.audit(df, "TRENT", exchange="NSE")         # or named
+beurs.audit(df, "TRENT", exchange="NSE",
              exchange_close=raw_closes)           # enables fabricated_jumps
-bourse.audit_many({"A": df1, "B": df2})           # worst-first DataFrame
+beurs.audit_many({"A": df1, "B": df2})           # worst-first DataFrame
 report.explain()                                  # what each finding means
 
 # Repair
-out = bourse.repair(df, "TRENT.NS")
+out = beurs.repair(df, "TRENT.NS")
 out.frame, out.log, out.usable_rows, out.report_before
 
 # Screen a universe
-s = bourse.screen(tickers)
+s = beurs.screen(tickers)
 s.ok, s.empty, s.short, s.errors, s.biased, s.survivor_rate, s.to_frame()
 
 # Calendars
-bourse.infer("600519.SS")                         # 'SSE'
-bourse.sessions("2024-01-01", "2024-12-31", "NYSE")
-bourse.is_session("2024-01-20", "NSE")            # True -- a Saturday NSE traded
-bourse.offset("2026-01-23", 5, "NSE")             # date(2026, 2, 1)
-bourse.audit_calendar(some_index, exchange="SSE")
-bourse.status()
+beurs.infer("600519.SS")                         # 'SSE'
+beurs.sessions("2024-01-01", "2024-12-31", "NYSE")
+beurs.is_session("2024-01-20", "NSE")            # True -- a Saturday NSE traded
+beurs.offset("2026-01-23", 5, "NSE")             # date(2026, 2, 1)
+beurs.audit_calendar(some_index, exchange="SSE")
+beurs.status()
 
 # India: the exchange's own end-of-day file
-bourse.bhavcopy("2024-01-20")
-bourse.security_master("2023-04-03")
+beurs.bhavcopy("2024-01-20")
+beurs.security_master("2023-04-03")
 ```
 
 `offset("2026-01-23", 5, "NSE")` returning a **Sunday** is not a bug: Republic
@@ -325,8 +332,8 @@ including several this package does not yet automate.
   looks exactly like a US one. No test reliably separates "bad data" from "right
   data, wrong calendar", so rather than pretend otherwise, any report built on a
   guessed venue says so in its own output.
-- `screen` and the CLI's fetching need `pip install 'bourse[fetch]'`; the 53
-  sourced calendars need `bourse[global]`.
+- `screen` and the CLI's fetching need `pip install 'beurs[fetch]'`; the 53
+  sourced calendars need `beurs[global]`.
 - NSE and Yahoo both fingerprint TLS — plain `requests` gets 403/429 on the first
   call whatever User-Agent you send. That is not rate limiting and backoff will
   not fix it. Hence `curl_cffi`.
