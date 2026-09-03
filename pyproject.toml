@@ -42,6 +42,12 @@ Security = "https://github.com/ShrewdLemon/bourse/blob/main/SECURITY.md"
 [tool.hatch.build.targets.wheel]
 packages = ["bourse"]
 
+# Without this the sdist ships metadata and nothing else -- no package, no
+# tests -- and `pip install --no-binary` fails outright.
+[tool.hatch.build.targets.sdist]
+include = ["bourse", "tests", "README.md", "TRAPS.md", "SECURITY.md",
+           "CONTRIBUTING.md", "DISCLAIMER.md", "LICENSE", "pyproject.toml"]
+
 [tool.hatch.build]
 include = ["bhavkit/data/*.json"]
 
