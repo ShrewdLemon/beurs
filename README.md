@@ -3,7 +3,6 @@
 [![tests](https://github.com/ShrewdLemon/beurs/actions/workflows/ci.yml/badge.svg)](https://github.com/ShrewdLemon/beurs/actions/workflows/ci.yml)
 [![python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://github.com/ShrewdLemon/beurs)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![pypi](https://img.shields.io/pypi/v/beurs?color=blue)](https://pypi.org/project/beurs/)
 [![venues](https://img.shields.io/badge/venues-54-orange)](#54-venues-each-carrying-its-provenance)
 
 **Market data that does not lie to you.**
@@ -13,9 +12,12 @@ and the frame looks fine. beurs finds the failures, fixes what can be fixed,
 and tells you what cannot.
 
 ```bash
-pip install beurs           # audit, repair, verified NSE calendar
-pip install 'beurs[all]'    # + 53 more venues and live fetching
+pip install git+https://github.com/ShrewdLemon/beurs                 # audit, repair, NSE calendar
+pip install "beurs[all] @ git+https://github.com/ShrewdLemon/beurs"  # + 53 venues, live fetching
 ```
+
+> **Not on PyPI yet**, so `pip install beurs` does not work today — the command
+> above does. Publishing is wired up and waiting on a one-time account setup.
 
 <sub><i>beurs</i> — Dutch for exchange, after the Van der Beurze family whose
 Bruges house the merchants met at in the 1300s. Every other word for the thing
