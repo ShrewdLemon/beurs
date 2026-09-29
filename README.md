@@ -381,7 +381,8 @@ including several this package does not yet automate.
   on every push and pull request, and weekly on a schedule.
 - A separate CI job installs beurs with **pandas alone** and checks that audit,
   repair and the NSE calendar work and that no optional dependency is imported.
-- `ruff` lint, and `bandit` and `pip-audit` security scans, run in CI.
+- `ruff` lint and a `bandit` security scan run in CI. `pip-audit` also runs,
+  but only as a report: a finding there does not fail the build.
 - The [publish workflow](.github/workflows/publish.yml) installs the built wheel
   in a clean venv and exercises it before anything is uploaded.
 
