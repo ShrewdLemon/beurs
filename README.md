@@ -5,7 +5,10 @@
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![venues](https://img.shields.io/badge/venues-54-orange)](#54-venues-each-carrying-its-provenance)
 
-**Market data that does not lie to you.**
+**Market data that does not lie to you.** beurs is a Python library and CLI
+that checks a daily price series against the calendar and records of the
+exchange that produced it. It is for quant researchers, data teams and anyone
+backtesting on free or vendor price data, especially for Indian equities.
 
 Your price API does not raise an exception when it is wrong. It returns a frame,
 and the frame looks fine. beurs finds the failures, fixes what can be fixed,
@@ -16,8 +19,35 @@ pip install git+https://github.com/ShrewdLemon/beurs                 # audit, re
 pip install "beurs[all] @ git+https://github.com/ShrewdLemon/beurs"  # + 53 venues, live fetching
 ```
 
-> **Not on PyPI yet**, so `pip install beurs` does not work today — the command
-> above does. Publishing is wired up and waiting on a one-time account setup.
+> **Not on PyPI yet**, so `pip install beurs` does not work today. The commands
+> above do. A PyPI release is pending: publishing is wired up and waiting on a
+> one-time account setup, described in [RELEASING.md](RELEASING.md).
+
+### Quickstart
+
+These run offline, no price download needed:
+
+```console
+$ beurs --version
+beurs 0.2.0
+$ beurs sessions 2024-01-01 2024-12-31 -e NYSE -n    # needs beurs[global]
+252
+```
+
+```python
+import pandas as pd
+import beurs
+
+beurs.is_session("2024-01-20", "NSE")        # True, a Saturday NSE traded
+beurs.offset("2026-01-23", 5, "NSE")         # date(2026, 2, 1), a Sunday session
+
+days = beurs.sessions("2024-02-01", "2024-04-30", exchange="NSE")
+df = pd.DataFrame({"Open": 1.0, "High": 1.0, "Low": 1.0, "Close": 1.0,
+                   "Volume": 1}, index=pd.DatetimeIndex(days))
+beurs.audit(df, "X", exchange="NSE").clean   # True
+```
+
+With `beurs[all]` installed, audit a live series: `beurs audit TRENT.NS -v`.
 
 <sub><i>beurs</i> — Dutch for exchange, after the Van der Beurze family whose
 Bruges house the merchants met at in the 1300s. Every other word for the thing
@@ -343,6 +373,40 @@ including several this package does not yet automate.
   ex-adjusted either: RELIANCE's 1:2 reads −49.76%. A feature for auditing, a
   trap if you difference it naively.
 
+## How it's tested
+
+- **79 tests** (`pytest tests/ -q`, all passing on 0.2.0). Tests use captured
+  fixtures and no network, so they do not flake.
+- [CI](.github/workflows/ci.yml) runs them on Python 3.10, 3.11, 3.12 and 3.13
+  on every push and pull request, and weekly on a schedule.
+- A separate CI job installs beurs with **pandas alone** and checks that audit,
+  repair and the NSE calendar work and that no optional dependency is imported.
+- `ruff` lint, and `bandit` and `pip-audit` security scans, run in CI.
+- The [publish workflow](.github/workflows/publish.yml) installs the built wheel
+  in a clean venv and exercises it before anything is uploaded.
+
+## Design principles
+
+- **No fabricated numbers.** Nothing is forward-filled. A stale close is nulled,
+  a missing session becomes a visible NaN, and every edit is logged.
+- **Provenance on every calendar.** Each venue says whether it was verified by
+  this project or sourced from `exchange_calendars`. Only one is verified.
+- **Say when it is guessing.** A report built on an inferred venue says so in
+  its own output.
+- **Fail loudly outside what is known.** `sessions()` raises outside the
+  verified NSE range rather than guessing.
+- **Exit codes are the interface.** 0 clean, 1 could not run, 2 findings.
+- **Optional means optional.** The base install needs pandas and nothing else.
+
+## Limitations and roadmap
+
+- Only NSE is verified. The other 53 venues are as good as `exchange_calendars`.
+- Several traps in [TRAPS.md](TRAPS.md) are documented but not yet automated.
+- `fabricated_jumps` needs raw exchange closes. For NSE, `beurs.bhavcopy` gives
+  them; for other venues you have to supply them.
+- Next: the first PyPI release (see [RELEASING.md](RELEASING.md)), then more
+  verified venues where the sourced calendar is shown to be wrong.
+
 ## Contributing
 
 The most valuable contribution is **a measured trap**: what the source says vs
@@ -353,5 +417,13 @@ Adding a venue is one entry in `EXCHANGES` for a `sourced` calendar. Shipping a
 `verified` one requires showing the diff against the sourced calendar it
 replaces.
 
-MIT. See [DISCLAIMER.md](DISCLAIMER.md) — educational software, not investment
-advice, not affiliated with any exchange. Security policy: [SECURITY.md](SECURITY.md).
+## Licence
+
+MIT, see [LICENSE](LICENSE). See also [DISCLAIMER.md](DISCLAIMER.md): educational
+software, not investment advice, not affiliated with any exchange. Security
+policy: [SECURITY.md](SECURITY.md).
+
+## Contact
+
+Punarbasu Pradhan, [github.com/ShrewdLemon](https://github.com/ShrewdLemon).
+Bugs and measured traps go in [issues](https://github.com/ShrewdLemon/beurs/issues).
