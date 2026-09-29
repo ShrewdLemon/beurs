@@ -46,7 +46,7 @@ packages = ["beurs"]
 # tests -- and `pip install --no-binary` fails outright.
 [tool.hatch.build.targets.sdist]
 include = ["beurs", "tests", "README.md", "TRAPS.md", "SECURITY.md",
-           "CONTRIBUTING.md", "DISCLAIMER.md", "LICENSE", "pyproject.toml"]
+           "CONTRIBUTING.md", "RELEASING.md", "DISCLAIMER.md", "LICENSE", "pyproject.toml"]
 
 [tool.hatch.build]
 include = ["bhavkit/data/*.json"]
